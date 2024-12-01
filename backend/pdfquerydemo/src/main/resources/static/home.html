@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Query Tool</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Helvetica:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: #f0f4f7;
+            font-family: 'Helvetica', sans-serif;
+            color: #333;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            margin: 0;
+        }
+
+        .container {
+            text-align: center;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            color: #0056b3;
+        }
+
+        .form-control {
+            border-radius: 25px;
+            padding: 15px;
+            font-size: 1.2rem;
+            margin: 10px auto;
+            background-color: #ffffff;
+            border: 1px solid #ccc;
+        }
+
+        .btn {
+            font-size: 1.2rem;
+            padding: 15px 30px;
+            border-radius: 50px;
+            margin: 20px auto;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
+
+        .btn-upload {
+            background-color: #28a745;
+        }
+
+        .btn-query {
+            background-color: #007bff;
+        }
+
+        .btn:disabled {
+            background-color: #ccc;
+            color: #777;
+            cursor: not-allowed;
+        }
+
+        .popup-box {
+            position: fixed;
+            top: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #ffffff;
+            border: 2px solid #0056b3;
+            border-radius: 10px;
+            padding: 20px;
+            width: 400px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .popup-box .popup-header {
+            font-weight: bold;
+            color: #0056b3;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .query-result {
+            font-size: 1.1rem;
+            color: #333;
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            word-wrap: break-word;
+            background-color: #f9f9f9;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .spinner-border {
+            width: 1rem;
+            height: 1rem;
+            margin-left: 10px;
+        }
+
+        .copy-btn {
+            background-color: #ffc107;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1rem;
+            border-radius: 25px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .copy-btn:hover {
+            background-color: #e0a800;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Welcome to PDF Query</h1>
+    <p>A tool by Baishali Nath to search within PDFs</p>
+
+    <div class="file-upload-container">
+        <h3>Upload Your PDF</h3>
+        <div class="custom-file">
+            <input type="file" id="pdf-file" class="custom-file-input" accept="application/pdf">
+            <label class="custom-file-label" for="pdf-file">Browse</label>
+        </div>
+        <button class="btn btn-upload" id="upload-btn">Upload</button>
+    </div>
+
+    <div class="query-container">
+        <h3>Search in PDF</h3>
+        <input type="text" id="query-text" class="form-control" placeholder="Enter text to search">
+        <button class="btn btn-query" id="query-btn">Search</button>
+    </div>
+</div>
+
+<!-- Upload Popup -->
+<div id="upload-popup" class="popup-box">
+    <div class="popup-header">
+        <span id="upload-popup-title">Upload Status</span>
+        <span id="upload-popup-close" style="cursor:pointer;">&times;</span>
+    </div>
+    <div id="upload-popup-body"></div>
+</div>
+
+<!-- Query Result Popup -->
+<div id="query-popup" class="popup-box">
+    <div class="popup-header">
+        <span id="query-popup-title">Query Result</span>
+        <span id="query-popup-close" style="cursor:pointer;">&times;</span>
+    </div>
+    <div id="query-popup-body">
+        <div id="query-result" class="query-result"></div>
+        <button id="copy-btn" class="copy-btn">Copy</button>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+<script>
+    $(document).ready(function () {
+        function toggleButtons(disable) {
+            $(".btn").prop("disabled", disable);
+            if (disable) {
+                $(".btn").append('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
+            } else {
+                $(".spinner-border").remove();
+            }
+        }
+
+        // Upload Button Click Handler
+        $("#upload-btn").click(function () {
+            var fileInput = $("#pdf-file")[0];
+            if (fileInput.files.length === 0) {
+                alert("Please select a PDF file to upload.");
+                return;
+            }
+
+            var formData = new FormData();
+            formData.append("file", fileInput.files[0]);
+
+            toggleButtons(true);
+
+            $.ajax({
+                url: 'http://localhost:8080/upload',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function () {
+                    $("#upload-popup-body").text("File uploaded successfully!");
+                    $("#upload-popup").fadeIn();
+                },
+                error: function () {
+                    $("#upload-popup-body").text("File upload failed.");
+                    $("#upload-popup").fadeIn();
+                },
+                complete: function () {
+                    toggleButtons(false);
+                }
+            });
+        });
+
+        // Query Button Click Handler
+        $("#query-btn").click(function () {
+            var queryText = $("#query-text").val().trim();
+            if (!queryText) {
+                alert("Please enter text to search.");
+                return;
+            }
+
+            toggleButtons(true);
+
+            $.ajax({
+                url: 'http://localhost:8080/query',
+                type: 'GET',
+                data: { query: queryText },
+                success: function (response) {
+                    $("#query-result").text(response);
+                    $("#query-popup").fadeIn();
+                },
+                error: function () {
+                    $("#query-result").text("An error occurred while processing your request.");
+                    $("#query-popup").fadeIn();
+                },
+                complete: function () {
+                    toggleButtons(false);
+                }
+            });
+        });
+
+        // Popup Close Handlers
+        $("#upload-popup-close").click(function () {
+            $("#upload-popup").fadeOut();
+        });
+
+        $("#query-popup-close").click(function () {
+            $("#query-popup").fadeOut();
+        });
+
+        // Copy Button Handler
+        $("#copy-btn").click(function () {
+            var content = $("#query-result").text();
+            navigator.clipboard.writeText(content);
+        });
+    });
+</script>
+</body>
+</html>
